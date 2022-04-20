@@ -122,12 +122,12 @@ class AdversarialBasic(torch.nn.Module):
 
 
 class JointSeqBERTLayer(torch.nn.Module):
-    def __init__(self, num_labels=3, use_cuda=False):
+    def __init__(self, num_labels=3, use_cuda=False, bert_pretrained_model="bert-base-uncased"):
         super(JointSeqBERTLayer, self).__init__()
 
         self.num_labels = num_labels
         self.use_cuda = use_cuda
-        self.bert_layer = BertForSequenceClassification.from_pretrained('bert-base-uncased')
+        self.bert_layer = BertForSequenceClassification.from_pretrained(bert_pretrained_model)
 
         self.dim = 768
         if self.use_cuda:

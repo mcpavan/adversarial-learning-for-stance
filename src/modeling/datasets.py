@@ -11,7 +11,8 @@ class StanceData(Dataset):
     '''
     def __init__(self, data_name, vocab_name, topic_name=None, name='',
                  max_sen_len=10, max_tok_len=200, max_top_len=5, binary=False,
-                 pad_val=0, is_bert=False, add_special_tokens=True, use_tar_in_twe=False):
+                 pad_val=0, is_bert=False, add_special_tokens=True, use_tar_in_twe=False,
+                 **kwargs):
         self.data_name = data_name
         self.data_file = pd.read_csv(data_name)
         if vocab_name is not None:
@@ -29,7 +30,8 @@ class StanceData(Dataset):
         self.use_tar_in_twe = use_tar_in_twe
 
         if self.is_bert:
-            self.tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
+            self.bert_pretrained_model = kwargs.get("bert_pretrained_model", "bert-base-uncased")
+            self.tokenizer = BertTokenizer.from_pretrained(self.bert_pretrained_model)
 
         self.preprocess_data()
 

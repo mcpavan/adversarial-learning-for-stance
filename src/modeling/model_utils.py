@@ -35,6 +35,7 @@ class TorchModelHandler:
         self.checkpoint_num = 0
         self.num_ckps = num_ckps
         self.epoch = 0
+        self.print_batch_loss = params.get("print_batch_loss", True)
 
         self.result_path = result_path
 
@@ -144,7 +145,7 @@ class TorchModelHandler:
 
             # zero gradients before EVERY optimizer step
             self.model.zero_grad()
-            if self.tune_embeds:
+            if self.fine_tune:
                 self.embed_model.zero_grad()
 
             y_pred, labels = self.get_pred_with_grad(sample_batched)
@@ -154,7 +155,7 @@ class TorchModelHandler:
                 # move labels to cuda if necessary
                 label_tensor = label_tensor.to('cuda')
 
-            if self.dataloader.weighting:
+            if hasattr(self.dataloader, "weighting") and self.dataloader.weighting:
                 batch_loss = self.loss_function(y_pred, label_tensor)
                 weight_lst = torch.tensor([self.dataloader.topic2c2w[b['ori_topic']][b['label']]
                                            for b in sample_batched])
@@ -429,7 +430,8 @@ class AdvTorchModelHandler(TorchModelHandler):
         start_time = time.time()
         print(len(self.dataloader))
         for i_batch, sample_batched in enumerate(self.dataloader):
-            print("Batch {} in epoch {} -".format(i_batch, self.epoch))
+            if self.print_batch_loss:
+                print("Batch {} in epoch {} -".format(i_batch, self.epoch))
             # zero gradients before EVERY optimizer step
             self.model.zero_grad()
 
@@ -449,12 +451,14 @@ class AdvTorchModelHandler(TorchModelHandler):
             # graph_loss_all.backward(retain_graph=self.loss_function.use_adv) # NOT on adv. params
             self.optimizer.step()
 
-            print("Main loss", graph_loss_all.item())
+            if self.print_batch_loss:
+                print("Main loss", graph_loss_all.item())
 
             self.model.zero_grad()
             # if self.loss_function.use_adv:
             if True:  # self.loss_function.use_adv: - always do this, train adversary a bit first on it's own
-                print("Adv loss", graph_loss_adv.item())
+                if self.print_batch_loss:
+                    print("Adv loss", graph_loss_adv.item())
                 graph_loss_adv.backward()
                 self.adv_optimizer.step()
                 # only on adv params

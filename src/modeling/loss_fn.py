@@ -1,3 +1,4 @@
+from tkinter import N
 import torch
 import torch.nn as nn
 import math
@@ -29,7 +30,7 @@ class TransformationLoss(torch.nn.Module):
 
 class AdvBasicLoss(torch.nn.Module):
     def __init__(self, trans_dim, trans_param, num_no_adv=None, tot_epochs=20, rho_adv=False, gamma=10,
-                 rec_weight=1, semi_sup=False, use_cuda=False):
+                 rec_weight=1, semi_sup=False, use_cuda=False, n_outputs=3):
         super(AdvBasicLoss, self).__init__()
 
         self.rec_loss = ReconstructionLoss()
@@ -39,8 +40,10 @@ class AdvBasicLoss(torch.nn.Module):
 
 
         self.semi_sup = semi_sup
+        # if n_outputs < 3:
+        #     self.stance_loss = nn.BCELoss()
         if self.semi_sup:
-            self.stance_loss = nn.CrossEntropyLoss(ignore_index=3)
+            self.stance_loss = nn.CrossEntropyLoss(ignore_index=n_outputs)
         else:
             self.stance_loss = nn.CrossEntropyLoss()
         self.topic_loss = nn.CrossEntropyLoss()

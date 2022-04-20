@@ -44,12 +44,19 @@ def train(model_handler, num_epochs, verbose=True, dev_data=None, num_warm=0, ph
                 trn_scores = eval_helper(model_handler, data_name='TRAIN')
                 trn_scores_dict[epoch] = copy.deepcopy(trn_scores)
                 if is_adv:
-                    trn_scores_dict[epoch].update({'lr': copy.deepcopy(learning_rate),
-                                                   'rho': copy.deepcopy(model_handler.loss_function.adv_param)})
+                    trn_scores_dict[epoch].update(
+                        {
+                            'lr': copy.deepcopy(learning_rate),
+                            'rho': copy.deepcopy(model_handler.loss_function.adv_param)
+                        }
+                    )
                 # update best scores
                 if dev_data is not None:
-                    dev_scores = eval_helper(model_handler, data_name='DEV',
-                                             data=dev_data)
+                    dev_scores = eval_helper(
+                        model_handler,
+                        data_name='DEV',
+                        data=dev_data
+                    )
                     dev_scores_dict[epoch] = copy.deepcopy(dev_scores)
                     model_handler.save_best(scores=dev_scores)
                 else:
@@ -61,9 +68,17 @@ def train(model_handler, num_epochs, verbose=True, dev_data=None, num_warm=0, ph
     model_handler.save(num="FINAL")
 
     # print final training (& dev) scores
-    eval_helper(model_handler, data_name='TRAIN')
+    eval_helper(
+        model_handler,
+        data_name='TRAIN'
+    )
+    
     if dev_data is not None:
-        eval_helper(model_handler,  data_name='DEV', data=dev_data)
+        eval_helper(
+            model_handler,
+            data_name='DEV',
+            data=dev_data
+        )
     # Can uncomment to save epoch_level_scores
     #save_epoch_level_results_to_csv(trn_scores_dict, dev_scores_dict, model_handler.result_path, model_handler.name, is_adv)
 
@@ -101,17 +116,51 @@ def save_epoch_level_results_to_csv(trn_scores_dict, dev_scores_dict, output_pat
         train_fscore_unseen_list.append(trn_scores_dict[key]['f-0_macro'])
         
     if is_adv:
-        df = pd.DataFrame(list(zip(epochs, learning_rate_list, rho_list, dev_fscore_overall_list, dev_fscore_seen_list,
-                                   dev_fscore_unseen_list, topic_fscore_list, train_fscore_overall_list,
-                                   train_fscore_seen_list,train_fscore_unseen_list)),
-                      columns=['Epoch', 'Learning Rate', 'Rho', 'Dev Fscore overall', 'Dev Fscore seen',
-                               'Dev Fscore unseen', 'Topic Fscore', 'Train Fscore overall', 'Train Fscore seen',
-                               'Train Fscore unseen'])
+        df_data = zip(
+            epochs,
+            learning_rate_list,
+            rho_list,
+            dev_fscore_overall_list,
+            dev_fscore_seen_list,
+            dev_fscore_unseen_list,
+            topic_fscore_list,
+            train_fscore_overall_list,
+            train_fscore_seen_list,
+            train_fscore_unseen_list
+        )
+        df_cols = [
+            'Epoch',
+            'Learning Rate',
+            'Rho',
+            'Dev Fscore overall',
+            'Dev Fscore seen',
+            'Dev Fscore unseen',
+            'Topic Fscore',
+            'Train Fscore overall',
+            'Train Fscore seen',
+            'Train Fscore unseen'
+        ]
     else:
-        df = pd.DataFrame(list(zip(epochs, dev_fscore_overall_list, dev_fscore_seen_list, dev_fscore_unseen_list,
-                               train_fscore_overall_list, train_fscore_seen_list, train_fscore_unseen_list)),
-                      columns=['Epoch', 'Dev Fscore overall', 'Dev Fscore seen', 'Dev Fscore unseen',
-                               'Train Fscore overall', 'Train Fscore seen', 'Train Fscore unseen'])
+        df_data = zip(
+            epochs,
+            dev_fscore_overall_list,
+            dev_fscore_seen_list,
+            dev_fscore_unseen_list,
+            train_fscore_overall_list,
+            train_fscore_seen_list,
+            train_fscore_unseen_list
+        )
+        df_cols = [
+            'Epoch',
+            'Dev Fscore overall',
+            'Dev Fscore seen',
+            'Dev Fscore unseen',
+            'Train Fscore overall',
+            'Train Fscore seen',
+            'Train Fscore unseen'
+        ]
+    
+    df = pd.DataFrame(list(df_data), columns=df_cols)
     df.to_csv("{}{}_epoch_level_scores.csv".format(output_path, name), index=False)
 
 
@@ -165,37 +214,62 @@ if __name__ == '__main__':
     else:
         vec_path = 'data/resources'     #Need to set path to vectors here
 
-    if 'bert' not in config['name']:
-
+    if 'bert' not in config['name'] and "bert_pretrained_model" not in config:
         vec_name = config['vec_name']
         vec_dim = int(config['vec_dim'])
 
-        vecs = data_utils.load_vectors('{}/{}.vectorsF.npy'.format(vec_path, vec_name),
-                                       dim=vec_dim, seed=SEED)
-
+        vecs = data_utils.load_vectors(
+            '{}/{}.vectorsF.npy'.format(vec_path, vec_name),
+            dim=vec_dim,
+            seed=SEED,
+        )
+        dataset_kwargs = {}
+    else:
+        dataset_kwargs = {
+            "is_bert": True,
+            "bert_pretrained_model": config.get("bert_pretrained_model", "bert-base-uncased")
+        }
+    
     #############
     # LOAD DATA #
     #############
     # load training data
     vocab_name = '{}/{}.vocabF.pkl'.format(vec_path, vec_name)
-    data = datasets.StanceData(args.trn_data, vocab_name, topic_name='{}/{}'.format(vec_path, args.topics_vocab),
-                           pad_val=len(vecs) - 1,
-                           max_tok_len=int(config.get('max_tok_len', '200')),
-                           max_sen_len=int(config.get('max_sen_len', '10')),
-                           max_top_len=int(config.get('max_top_len', '5')))
+    data = datasets.StanceData(
+        args.trn_data,
+        vocab_name,
+        topic_name='{}/{}'.format(vec_path, args.topics_vocab),
+        pad_val=len(vecs) - 1,
+        max_tok_len=int(config.get('max_tok_len', '200')),
+        max_sen_len=int(config.get('max_sen_len', '10')),
+        max_top_len=int(config.get('max_top_len', '5')),
+        **dataset_kwargs
+    )
     
-    dataloader = data_utils.DataSampler(data,  batch_size=int(config['b']))
+    dataloader = data_utils.DataSampler(
+        data,
+        batch_size=int(config['b'])
+    )
 
     # load dev data if specified
     if args.dev_data is not None:
-        dev_data = datasets.StanceData(args.dev_data, vocab_name, topic_name=None,
-                                       pad_val=len(vecs) - 1,
-                                       max_tok_len=int(config.get('max_tok_len', '200')),
-                                       max_sen_len=int(config.get('max_sen_len', '10')),
-                                       max_top_len=int(config.get('max_top_len', '5')),
-                                       use_tar_in_twe=('use_tar_in_twe' in config))
+        dev_data = datasets.StanceData(
+            args.dev_data,
+            vocab_name,
+            topic_name=None,
+            pad_val=len(vecs) - 1,
+            max_tok_len=int(config.get('max_tok_len', '200')),
+            max_sen_len=int(config.get('max_sen_len', '10')),
+            max_top_len=int(config.get('max_top_len', '5')),
+            use_tar_in_twe=('use_tar_in_twe' in config),
+            **dataset_kwargs
+        )
 
-        dev_dataloader = data_utils.DataSampler(dev_data, batch_size=int(config['b']), shuffle=False)
+        dev_dataloader = data_utils.DataSampler(
+            dev_data,
+            batch_size=int(config['b']),
+            shuffle=False
+        )
 
     else:
         dev_dataloader = None
@@ -213,152 +287,245 @@ if __name__ == '__main__':
             sys.exit(1)
 
     lr = float(config.get('lr', '0.001'))
-    nl = 3
+    nl = int(config.get("n_output_classes", "3"))
     adv = False
+    print_batch_loss = False
 
     # RUN
     print("Using cuda?: {}".format(use_cuda))
 
-    if 'bert' in config['name']:
+    if 'bert' in config['name'].lower():
         batch_args = {'keep_sen': False}
         setup_fn = data_utils.setup_helper_bert_ffnn
         loss_fn = nn.CrossEntropyLoss()
 
         input_layer = None
-        model = bm.JointSeqBERTLayer(nl, use_cuda=use_cuda)
+        model = bm.JointSeqBERTLayer(
+            nl,
+            use_cuda=use_cuda,
+            bert_pretrained_model=config.get("bert_pretrained_model", "bert-base-uncased")
+        )
 
-        optimizer = optim.AdamW(model.parameters(), lr=lr)
+        optimizer = optim.AdamW(
+            model.parameters(),
+            lr=lr
+        )
 
         num_training_steps = len(data) * int(config['epochs'])
-        scheduler = get_linear_schedule_with_warmup(optimizer,
-                                                    num_warmup_steps=0.1 * num_training_steps,
-                                                    num_training_steps=num_training_steps)
+        scheduler = get_linear_schedule_with_warmup(
+            optimizer,
+            num_warmup_steps=0.1 * num_training_steps,
+            num_training_steps=num_training_steps
+        )
 
-        kwargs = {'model': model, 'embed_model': input_layer, 'dataloader': dataloader,
-                  'batching_fn': data_utils.prepare_batch,
-                  'batching_kwargs': batch_args, 'name': config['name'],
-                  'loss_function': loss_fn,
-                  'optimizer': optimizer,
-                  'scheduler': scheduler,
-                  'setup_fn': setup_fn,
-                  'fine_tune': (config.get('fine-tune', 'no') == 'yes')}
+        kwargs = {
+            'model': model,
+            'embed_model': input_layer,
+            'dataloader': dataloader,
+            'batching_fn': data_utils.prepare_batch,
+            'batching_kwargs': batch_args,
+            'name': config['name'],
+            'loss_function': loss_fn,
+            'optimizer': optimizer,
+            'scheduler': scheduler,
+            'setup_fn': setup_fn,
+            'fine_tune': (config.get('fine-tune', 'no').lower() in ['yes', "1", "true"]),
+            "print_batch_loss": print_batch_loss
+        }
 
-        model_handler = model_utils.TorchModelHandler(use_cuda=use_cuda,
-                                                      checkpoint_path=config.get('ckp_path', 'data/checkpoints/'),
-                                                      result_path=config.get('res_path', 'data/gen-stance/'),
-                                                      use_score=args.score_key, save_ckp=args.save_ckp,
-                                                      **kwargs)
+        model_handler = model_utils.TorchModelHandler(
+            use_cuda=use_cuda,
+            checkpoint_path=config.get('ckp_path', 'data/checkpoints/'),
+            result_path=config.get('res_path', 'data/gen-stance/'),
+            use_score=args.score_key,
+            save_ckp=args.save_ckp,
+            **kwargs
+        )
 
-    elif 'BiCond' in config['name']:
+    elif 'bicond' in config['name'].lower():
         batch_args = {}
-        input_layer = bm.WordEmbedLayer(vecs=vecs, use_cuda=use_cuda)
+        input_layer = bm.WordEmbedLayer(
+            vecs=vecs,
+            use_cuda=use_cuda
+        )
 
         setup_fn = data_utils.setup_helper_bicond
+        
+        # if nl < 3:
+        #     loss_fn = nn.BCELoss()
+        # else:
+        loss_fn = nn.CrossEntropyLoss(ignore_index=nl)
 
-        loss_fn = nn.CrossEntropyLoss()
+        model = bm.BiCondLSTMModel(
+            int(config['h']),
+            embed_dim=input_layer.dim,
+            input_dim=(int(config['in_dim']) if 'in_dim' in config['name'] else input_layer.dim),
+            drop_prob=float(config['dropout']),
+            use_cuda=use_cuda,
+            num_labels=nl
+        )
 
-        model = bm.BiCondLSTMModel(int(config['h']), embed_dim=input_layer.dim,
-                                   input_dim=(int(config['in_dim']) if 'in_dim' in config['name'] else input_layer.dim),
-                                   drop_prob=float(config['dropout']), use_cuda=use_cuda,
-                                   num_labels=nl)
-        o = optim_fn(model.parameters(), lr=lr)
+        o = optim_fn(
+            model.parameters(),
+            lr=lr
+        )
 
         bf = data_utils.prepare_batch
 
-        kwargs = {'model': model, 'embed_model': input_layer, 'dataloader': dataloader,
-                  'batching_fn': bf,
-                  'batching_kwargs': batch_args, 'name': config['name'] + args.name,
-                  'loss_function': loss_fn,
-                  'optimizer': o,
-                  'setup_fn': setup_fn,
-                  'blackout_start': int(config['blackout_start']),
-                  'blackout_stop': int(config['blackout_stop'])}
+        kwargs = {
+            'model': model,
+            'embed_model': input_layer,
+            'dataloader': dataloader,
+            'batching_fn': bf,
+            'batching_kwargs': batch_args,
+            'name': config['name'] + args.name,
+            'loss_function': loss_fn,
+            'optimizer': o,
+            'setup_fn': setup_fn,
+            'blackout_start': int(config.get('blackout_start', 0)),
+            'blackout_stop': int(config.get('blackout_stop', 0)),
+            'fine_tune': bool(config.get('fine-tune', 'no').lower() in ['yes', "1", "true"]),
+            "print_batch_loss": print_batch_loss
+        }
 
-        model_handler = model_utils.TorchModelHandler(use_cuda=use_cuda,
-                                                      checkpoint_path=config.get('ckp_path', 'data/checkpoints/'),
-                                                      result_path=config.get('res_path','data/gen-stance/'),
-                                                      **kwargs)
+        model_handler = model_utils.TorchModelHandler(
+            use_cuda=use_cuda,
+            checkpoint_path=config.get('ckp_path', 'data/checkpoints/'),
+            result_path=config.get('res_path','data/gen-stance/'),
+            **kwargs
+        )
 
-    elif 'BasicAdv' in config['name']:
+    elif 'basicadv' in config['name'].lower():
         batch_args = {}
-        input_layer = bm.WordEmbedLayer(vecs=vecs, use_cuda=use_cuda)
+        input_layer = bm.WordEmbedLayer(
+            vecs=vecs,
+            use_cuda=use_cuda
+        )
+
         setup_fn = data_utils.setup_helper_adv
 
-        loss_fn = lf.AdvBasicLoss(trans_dim=2*int(config['h']), trans_param=float(config['trans_w']),
-                                  num_no_adv=float(config['num_na']),
-                                  tot_epochs=int(config['epochs']),
-                                  rho_adv=('rho_adv' in config),
-                                  gamma=float(config.get('gamma', 10.0)),
-                                  semi_sup=('semi_sup' in config),
-                                  use_cuda=use_cuda)
+        loss_fn = lf.AdvBasicLoss(
+            trans_dim=2*int(config['h']),
+            trans_param=float(config['trans_w']),
+            num_no_adv=float(config['num_na']),
+            tot_epochs=int(config['epochs']),
+            rho_adv=('rho_adv' in config),
+            gamma=float(config.get('gamma', 10.0)),
+            semi_sup=bool(config.get('semi_sup', False)),
+            use_cuda=use_cuda,
+            n_outputs=nl
+        )
 
-        enc_params = {'h': int(config['h']), 'embed_dim': input_layer.dim, 'drop_prob' : float(config['dropout'])}
+        enc_params = {
+            'h': int(config['h']),
+            'embed_dim': input_layer.dim,
+            'drop_prob' : float(config['dropout'])
+        }
 
-        model = bm.AdversarialBasic(enc_params=enc_params, enc_type=config['enc'],
-                                    stance_dim=int(config['sd']), topic_dim=int(config['td']),
-                                    num_labels=nl, num_topics=int(config['num_top']),
-                                    drop_prob=float(config['dropout']),
-                                    use_cuda=use_cuda)
+        model = bm.AdversarialBasic(
+            enc_params=enc_params,
+            enc_type=config['enc'],
+            stance_dim=int(config['sd']),
+            topic_dim=int(config['td']),
+            num_labels=nl,
+            num_topics=int(config['num_top']),
+            drop_prob=float(config['dropout']),
+            use_cuda=use_cuda
+        )
         
         if 'optimizer' not in config:
             #Adam optimizer
-            o_main = optim_fn(chain(model.enc.parameters(),
-                                model.recon_layer.parameters(),
-                                model.topic_recon_layer.parameters(),
-                                model.trans_layer.parameters(),
-                                model.stance_classifier.parameters()),
-                          lr=lr,
-                          weight_decay=float(config.get('l2_main', '0')))
-            o_adv = optim_fn(model.topic_classifier.parameters(),
-                             lr=lr,
-                             weight_decay=float(config.get('l2_adv', '0')))
+            o_main = optim_fn(
+                chain(
+                    model.enc.parameters(),
+                    model.recon_layer.parameters(),
+                    model.topic_recon_layer.parameters(),
+                    model.trans_layer.parameters(),
+                    model.stance_classifier.parameters()
+                ),
+                lr=lr,
+                weight_decay=float(config.get('l2_main', '0'))
+            )
+
+            o_adv = optim_fn(
+                model.topic_classifier.parameters(),
+                lr=lr,
+                weight_decay=float(config.get('l2_adv', '0'))
+            )
+
         elif config['optimizer'] == 'sgd':
             #SGD optimizer
-            o_main = optim_fn(chain(model.enc.parameters(),
-                                    model.recon_layer.parameters(),
-                                    model.topic_recon_layer.parameters(),
-                                    model.trans_layer.parameters(),
-                                    model.stance_classifier.parameters()),
-                              lr=lr,
-                              weight_decay=float(config.get('l2_main', '0')),
-                              momentum=0.9,
-                              nesterov=True)
-            o_adv = optim_fn(model.topic_classifier.parameters(),
-                             lr=lr,
-                             weight_decay=float(config.get('l2_adv', '0')),
-                             momentum=0.9,
-                             nesterov=True)
+            o_main = optim_fn(
+                chain(
+                    model.enc.parameters(),
+                    model.recon_layer.parameters(),
+                    model.topic_recon_layer.parameters(),
+                    model.trans_layer.parameters(),
+                    model.stance_classifier.parameters()
+                ),
+                lr=lr,
+                weight_decay=float(config.get('l2_main', '0')),
+                momentum=0.9,
+                nesterov=True
+            )
+            
+            o_adv = optim_fn(
+                model.topic_classifier.parameters(),
+                lr=lr,
+                weight_decay=float(config.get('l2_adv', '0')),
+                momentum=0.9,
+                nesterov=True
+            )
 
-        kwargs = {'model': model, 'embed_model': input_layer, 'dataloader': dataloader,
-                  'batching_fn': data_utils.prepare_batch_adv,
-                  'batching_kwargs': batch_args, 'name': config['name'] + '-{}'.format(config['enc']) + args.name,
-                  'loss_function': loss_fn,
-                  'optimizer': o_main,
-                  'adv_optimizer': o_adv,
-                  'setup_fn': setup_fn,
-                  'tot_epochs': int(config['epochs']),
-                  'initial_lr': lr,
-                  'alpha': float(config.get('alpha', 10.0)),
-                  'beta': float(config.get('beta', 0.75)),
-                  'num_constant_lr': float(config['num_constant_lr']),
-                  'batch_size': int(config['b']),
-                  'blackout_start': int(config['blackout_start']),
-                  'blackout_stop': int(config['blackout_stop'])}
+        kwargs = {
+            'model': model,
+            'embed_model': input_layer,
+            'dataloader': dataloader,
+            'batching_fn': data_utils.prepare_batch_adv,
+            'batching_kwargs': batch_args,
+            'name': config['name'] + '-{}'.format(config['enc']) + args.name,
+            'loss_function': loss_fn,
+            'optimizer': o_main,
+            'adv_optimizer': o_adv,
+            'setup_fn': setup_fn,
+            'tot_epochs': int(config['epochs']),
+            'initial_lr': lr,
+            'alpha': float(config.get('alpha', 10.0)),
+            'beta': float(config.get('beta', 0.75)),
+            'num_constant_lr': float(config['num_constant_lr']),
+            'batch_size': int(config['b']),
+            'blackout_start': int(config.get('blackout_start', 0)),
+            'blackout_stop': int(config.get('blackout_stop', 0)),
+            "print_batch_loss": print_batch_loss
+        }
 
-        model_handler = model_utils.AdvTorchModelHandler(use_score=args.score_key, use_cuda=use_cuda,
-                                                         checkpoint_path=config.get('ckp_path', 'data/checkpoints/'),
-                                                         result_path=config.get('res_path', 'data/gen-stance/'),
-                                                         opt_for=config.get('opt', 'score_key'),
-                                                         **kwargs)
+        model_handler = model_utils.AdvTorchModelHandler(
+            use_score=args.score_key,
+            use_cuda=use_cuda,
+            checkpoint_path=config.get('ckp_path', 'data/checkpoints/'),
+            result_path=config.get('res_path', 'data/gen-stance/'),
+            opt_for=config.get('opt', 'score_key'),
+            **kwargs
+        )
 
     if args.mode == 'train':
         # Train model
         start_time = time.time()
-        train(model_handler, int(config['epochs']), dev_data=dev_dataloader,
-             num_warm=args.num_warm, phases=('phases' in config),is_adv=adv)
+        train(
+            model_handler,
+            int(config['epochs']),
+            dev_data=dev_dataloader,
+            num_warm=args.num_warm,
+            phases=('phases' in config),
+            is_adv=adv
+        )
         print("[{}] total runtime: {:.2f} minutes".format(config['name'], (time.time() - start_time)/60.))
 
     elif args.mode == 'eval':
         # Evaluate saved model
         model_handler.load(filename=args.saved_model_file_name)
-        eval_helper(model_handler,'DEV',data=dev_dataloader)
+        eval_helper(
+            model_handler,
+            'DEV',
+            data=dev_dataloader
+        )
