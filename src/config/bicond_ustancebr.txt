@@ -1,12 +1,12 @@
-name:BiCondLSTM_ustancebr_bo
+name:BiCondLSTM_ustancebr_
 ckp_path:data/checkpoints/ustancebr/
 res_path:data/model_results/ustancebr/
 vec_name:nilc_embeddings/glove_s100
 lr:0.001
 max_top_len:1
 vec_dim:100
-epochs:15
-max_tok_len:20
+epochs:50
+max_tok_len:60
 b:64
 h:127
 dropout:0.12

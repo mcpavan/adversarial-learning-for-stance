@@ -1,13 +1,13 @@
-name:BasicAdv_ustancebr_bo
+name:BasicAdv_ustancebr_
 ckp_path:data/checkpoints/ustancebr/
 res_path:data/model_results/ustancebr/
 vec_name:nilc_embeddings/glove_s100
 vec_dim:100
 enc:bicond
 num_top:6
-epochs:15
+epochs:150
 b:64
-max_tok_len:20
+max_tok_len:60
 max_top_len:1
 lr:0.001
 num_constant_lr:5
